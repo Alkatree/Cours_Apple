@@ -5,15 +5,18 @@ import pandas as pd
 import plotly.express as px
 import datetime
 
-# Création de l'app Dash
+# Initialisation de l'app
 app = dash.Dash(__name__)
-app.title = "APPLE Dashboard"
+app.title = "Cours Apple (AAPL)"
 
-
+# Layout de l'app
 app.layout = html.Div([
-    html.H1("Cours d'Apple - Live Tracker", style={"textAlign": "center"}),
+    html.H1("Cours de l'action Apple (AAPL) - Live Tracker", style={"textAlign": "center"}),
 
-    dcc.Graph(id='AAPL-graph'),
+    html.Div([
+        dcc.Graph(id='AAPL-graph'),
+        html.Div(id='daily-report', style={"marginTop": "30px"})
+    ]),
 
     html.Div(id='last-update', style={"textAlign": "center", "marginTop": "10px"}),
 
@@ -24,26 +27,53 @@ app.layout = html.Div([
     )
 ])
 
-# Callback pour mettre à jour le graphique
+# Callback pour mettre à jour le graphique et le rapport
 @app.callback(
-    Output('AAPL-graph', 'figure'),
+    Output('aapl-graph', 'figure'),
     Output('last-update', 'children'),
+    Output('daily-report', 'children'),
     Input('interval-component', 'n_intervals')
 )
 def update_graph(n):
     try:
         df = pd.read_csv("AAPL_data.csv")
         df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = df.dropna(subset=["price"])  # On enlève les NA
 
-        fig = px.line(df, x='timestamp', y='price', title="Évolution d'Apple",
-                      labels={"timestamp": "Heure", "price": "Prix"})
-        fig.update_layout(xaxis_title='Temps', yaxis_title='Prix', template="plotly_white")
+        fig = px.line(df, x='timestamp', y='price', title="Évolution de l'action AAPL",
+                      labels={"timestamp": "Heure", "price": "Prix ($)"})
+        fig.update_layout(xaxis_title='Temps', yaxis_title='Prix ($)', template="plotly_white")
 
         last_time = df['timestamp'].iloc[-1].strftime('%Y-%m-%d %H:%M:%S')
-        return fig, f"Dernière mise à jour : {last_time}"
-    except Exception as e:
-        return {}, f"Erreur lors de la lecture des données : {e}"
 
-# Exécution du serveur
+        # Rapport du jour
+        today = pd.Timestamp.now().normalize()
+        daily_data = df[df['timestamp'].dt.normalize() == today]
+
+        if not daily_data.empty:
+            open_price = daily_data['price'].iloc[0]
+            close_price = daily_data['price'].iloc[-1]
+            evolution = ((close_price - open_price) / open_price) * 100
+            volatility = daily_data['price'].std()
+
+            report = html.Div([
+                html.H4("Rapport du jour - Apple (AAPL)"),
+                html.P(f"Prix d'ouverture : {open_price:.2f} $"),
+                html.P(f"Prix de clôture : {close_price:.2f} $"),
+                html.P(f"Évolution : {evolution:.2f}%"),
+                html.P(f"Volatilité : {volatility:.4f}"),
+            ], style={"textAlign": "left", "border": "1px solid #ddd", "padding": "15px", "borderRadius": "10px"})
+        else:
+            report = html.Div([
+                html.H4("Rapport du jour - Apple (AAPL)"),
+                html.P("Aucune donnée disponible pour aujourd’hui.")
+            ])
+
+        return fig, f"Dernière mise à jour : {last_time}", report
+
+    except Exception as e:
+        return {}, f"Erreur lors de la lecture des données : {e}", html.Div()
+
+# Exécution de l'app
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0", port=8050)
+    app.run(debug=True, host="0.0.0.0", port=8050, use_reloader=True)
