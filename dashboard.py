@@ -9,7 +9,7 @@ import datetime
 app = dash.Dash(__name__)
 app.title = "APPLE Dashboard"
 
-# Layout de l'application
+
 app.layout = html.Div([
     html.H1("Cours d'Apple - Live Tracker", style={"textAlign": "center"}),
 
@@ -19,7 +19,7 @@ app.layout = html.Div([
 
     dcc.Interval(
         id='interval-component',
-        interval=5*60*1000,  # 5 minutes en millisecondes
+        interval=5*60*1000,  
         n_intervals=0
     )
 ])
